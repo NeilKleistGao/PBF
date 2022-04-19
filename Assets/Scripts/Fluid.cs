@@ -47,7 +47,7 @@ public class Fluid : MonoBehaviour {
             mNeighbors[i] = new List<int>();
         }
 
-        Debug.Log(mParticlesNumber);
+        Debug.Log("Particles Number: " + mParticlesNumber);
         mBounds = new Bounds(transform.position, transform.localScale);
         mPositionBuffer = new ComputeBuffer(mParticlesNumber, 3 * 4);
 
@@ -64,51 +64,10 @@ public class Fluid : MonoBehaviour {
             }
         }
         
-        mPositionBuffer.SetData(mPosition);
-        mMaterial.SetBuffer("positionBuffer", mPositionBuffer);
         mMaterial.SetFloat("scale", mRadius * 2);
     }
 
     private void Update() {
-        // apply forces
-        Vector3 force = new Vector3(0, -9.8f, 0);
-        for (int i = 0; i < mParticlesNumber; ++i) {
-            mVelocity[i] += Time.fixedDeltaTime * force;
-            mPredictPosition[i] = mPosition[i] + Time.fixedDeltaTime * mVelocity[i];
-            mNeighbors[i].Clear();
-            // SpatialHash.Instance.AddParticle(i, mPredictPosition[i]);
-        }
-
-        // find neighbors
-        for (int i = 0; i < mParticlesNumber; ++i) {
-            for (int j = 0; j < i; ++j) {
-                if (Vector3.Distance(mPredictPosition[i], mPredictPosition[j]) <= H) {
-                    mNeighbors[i].Add(j); mNeighbors[j].Add(i);
-                }
-            }
-            // mNeighbors[i] = SpatialHash.Instance.GetNeighbors(i, mPredictPosition[i]);
-        }
-
-        // for (int i = 0; i < mParticlesNumber; ++i) {
-        //     SpatialHash.Instance.RemoveParticle(i, mPredictPosition[i]);
-        // }
-
-        for (int i = 0; i < ITERATOR_TIMES; ++i) {
-            // TODO: calculate lambda
-            // TODO: calculate delta p
-            for (int j = 0; j < mParticlesNumber; ++j) {
-                foreach (Wall wall in mWalls) {
-                    wall.Collide(ref mPredictPosition[j], ref mVelocity[j]);
-                }
-            }
-        }
-
-        for (int i = 0; i < mParticlesNumber; ++i) {
-            // TODO: update velocity
-            // TODO: apply vorticity
-            mPosition[i] = mPredictPosition[i];
-        }
-
         mPositionBuffer.SetData(mPosition);
         mMaterial.SetBuffer("positionBuffer", mPositionBuffer);
         Graphics.DrawMeshInstancedProcedural(mMesh, 0, mMaterial, mBounds, mParticlesNumber);
