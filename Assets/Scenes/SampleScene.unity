@@ -172,6 +172,9 @@ MonoBehaviour:
   mRadius: 0.075
   mRectMin: {x: -1, y: -1, z: -1}
   mRectMax: {x: 1, y: 1, z: 1}
+  mDensity: 1
+  mWalls:
+  - {fileID: 689020422}
 --- !u!1001 &689020420
 PrefabInstance:
   m_ObjectHideFlags: 0

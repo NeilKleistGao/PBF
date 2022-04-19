@@ -15,6 +15,8 @@ public class Fluid : MonoBehaviour {
 
     [SerializeField] private float mDensity = 1.0f;
 
+    [SerializeField] private Wall[] mWalls;
+
     private int mParticlesNumber;
     private Vector3[] mPosition;
     private Vector3[] mPredictPosition;
@@ -23,6 +25,8 @@ public class Fluid : MonoBehaviour {
     private Bounds mBounds;
 
     private ComputeBuffer mPositionBuffer;
+
+    private static readonly int ITERATOR_TIMES = 8;
 
     private void Awake() {
         int xWidth = Mathf.FloorToInt((mRectMax.x - mRectMin.x) * transform.localScale.x / mRadius / 2);
@@ -55,16 +59,29 @@ public class Fluid : MonoBehaviour {
         mMaterial.SetBuffer("positionBuffer", mPositionBuffer);
         mMaterial.SetFloat("scale", mRadius * 2);
     }
+
     private void Update() {
+        // apply forces
         Vector3 force = new Vector3(0, -9.8f, 0);
         for (int i = 0; i < mParticlesNumber; ++i) {
             mVelocity[i] += Time.fixedDeltaTime * force;
             mPredictPosition[i] = mPosition[i] + Time.fixedDeltaTime * mVelocity[i];
         }
 
-        // TODO:
+        // TODO: find neighbors
+        for (int i = 0; i < ITERATOR_TIMES; ++i) {
+            // TODO: calculate lambda
+            // TODO: calculate delta p
+            for (int j = 0; j < mParticlesNumber; ++j) {
+                foreach (Wall wall in mWalls) {
+                    wall.Collide(ref mPredictPosition[j], ref mVelocity[j]);
+                }
+            }
+        }
 
         for (int i = 0; i < mParticlesNumber; ++i) {
+            // TODO: update velocity
+            // TODO: apply vorticity
             mPosition[i] = mPredictPosition[i];
         }
 
