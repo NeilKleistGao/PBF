@@ -169,6 +169,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   mMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
   mMaterial: {fileID: 2100000, guid: 5c810991383463a469877d679773f8a3, type: 2}
+  mSolver: {fileID: 7200000, guid: 60f8b69734e455749b38e43a4100f505, type: 3}
   mRadius: 0.075
   mRectMin: {x: -1, y: -1, z: -1}
   mRectMax: {x: 1, y: 1, z: 1}

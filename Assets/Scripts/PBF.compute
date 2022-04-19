@@ -1,14 +1,32 @@
-// Each #kernel tells which function to compile; you can have many kernels
-#pragma kernel CSMain
+RWStructuredBuffer<float3> gPosition;
+RWStructuredBuffer<float3> gPredictionPosition;
+RWStructuredBuffer<float3> gVelocity;
 
-// Create a RenderTexture with enableRandomWrite flag and set it
-// with cs.SetTexture
-RWTexture2D<float4> Result;
+uniform uint gParticlesNumber;
+uniform uint gBlockSize;
 
-[numthreads(8,8,1)]
-void CSMain (uint3 id : SV_DispatchThreadID)
-{
-    // TODO: insert actual code here!
+#define MAX_THREAD_X 1024
+#define DELTA_T  0.01667
 
-    Result[id.xy] = float4(id.x & id.y, (id.x & 15)/15.0, (id.y & 15)/15.0, 0.0);
+#pragma kernel ApplyForce
+[numthreads(MAX_THREAD_X, 1, 1)]
+void ApplyForce(uint3 pID : SV_DispatchThreadID) {
+    uint id = pID.x;
+    while (id < gParticlesNumber) {
+        gVelocity[id] += DELTA_T * float3(0, -9.8f, 0);
+        gPredictionPosition[id] = gPosition[id] + DELTA_T * gVelocity[id];
+
+        id += MAX_THREAD_X * gBlockSize;
+    }
+}
+
+#pragma kernel UpdatePositionAndVelocity
+[numthreads(MAX_THREAD_X, 1, 1)]
+void UpdatePositionAndVelocity(uint3 pID : SV_DispatchThreadID) {
+    uint id = pID.x;
+    while (id < gParticlesNumber) {
+        gPosition[id] = gPredictionPosition[id];
+
+        id += MAX_THREAD_X * gBlockSize;
+    }
 }
