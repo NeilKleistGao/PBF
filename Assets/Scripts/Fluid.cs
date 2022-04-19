@@ -22,11 +22,13 @@ public class Fluid : MonoBehaviour {
     private Vector3[] mPredictPosition;
     private Vector3[] mVelocity;
 
+    private List<int>[] mNeighbors;
+
     private Bounds mBounds;
 
     private ComputeBuffer mPositionBuffer;
 
-    private static readonly int ITERATOR_TIMES = 8;
+    private static readonly int ITERATOR_TIMES = 4;
 
     private void Awake() {
         int xWidth = Mathf.FloorToInt((mRectMax.x - mRectMin.x) * transform.localScale.x / mRadius / 2);
@@ -37,6 +39,7 @@ public class Fluid : MonoBehaviour {
         mPosition = new Vector3[mParticlesNumber];
         mVelocity = new Vector3[mParticlesNumber];
         mPredictPosition = new Vector3[mParticlesNumber];
+        mNeighbors = new List<int>[mParticlesNumber];
 
         Debug.Log(mParticlesNumber);
         mBounds = new Bounds(transform.position, transform.localScale);
@@ -66,9 +69,18 @@ public class Fluid : MonoBehaviour {
         for (int i = 0; i < mParticlesNumber; ++i) {
             mVelocity[i] += Time.fixedDeltaTime * force;
             mPredictPosition[i] = mPosition[i] + Time.fixedDeltaTime * mVelocity[i];
+            SpatialHash.Instance.AddParticle(i, mPredictPosition[i]);
         }
 
-        // TODO: find neighbors
+        // find neighbors
+        for (int i = 0; i < mParticlesNumber; ++i) {
+            mNeighbors[i] = SpatialHash.Instance.GetNeighbors(i, mPredictPosition[i]);
+        }
+
+        for (int i = 0; i < mParticlesNumber; ++i) {
+            SpatialHash.Instance.RemoveParticle(i, mPredictPosition[i]);
+        }
+
         for (int i = 0; i < ITERATOR_TIMES; ++i) {
             // TODO: calculate lambda
             // TODO: calculate delta p

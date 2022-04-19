@@ -7,7 +7,7 @@ public class SpatialHash : MonoBehaviour {
 
     private static SpatialHash gInstance = null;
 
-    public SpatialHash Instance {
+    public static SpatialHash Instance {
         get {
             return gInstance;
         }
@@ -20,7 +20,7 @@ public class SpatialHash : MonoBehaviour {
         }
     }
 
-    public void AddParticle(int pIndex, Vector3Int pPosition) {
+    public void AddParticle(int pIndex, Vector3 pPosition) {
         Vector3Int hash = GetHasing(pPosition);
         if (!mHash.ContainsKey(hash)) {
             mHash.Add(hash, new List<int>());
@@ -29,7 +29,7 @@ public class SpatialHash : MonoBehaviour {
         mHash[hash].Add(pIndex);
     }
 
-    public void RemoveParticle(int pIndex, Vector3Int pPosition) {
+    public void RemoveParticle(int pIndex, Vector3 pPosition) {
         Vector3Int hash = GetHasing(pPosition);
         if (mHash.ContainsKey(hash)) {
             mHash[hash].Remove(pIndex);
@@ -42,7 +42,7 @@ public class SpatialHash : MonoBehaviour {
             Mathf.FloorToInt(pPosition.z + 0.5f));
     }
 
-    public List<int> GetNeighbors(int pIndex, Vector3Int pPosition) {
+    public List<int> GetNeighbors(int pIndex, Vector3 pPosition) {
         List<int> neighbors = new List<int>();
         Vector3Int index = GetHasing(pPosition);
 

@@ -15,8 +15,7 @@ public class Wall : MonoBehaviour {
             return;
         }
 
-        Vector3 newPosition = new Vector3(pPosition.x, transform.position.y, pPosition.z);
-        pVelocity += (newPosition - pPosition) / Time.fixedDeltaTime;
-        pPosition = newPosition;
+        pVelocity -= (sdf * mNormal) / Time.fixedDeltaTime;
+        pPosition -= sdf * mNormal;
     }
 }
