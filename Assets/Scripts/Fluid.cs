@@ -13,8 +13,11 @@ public class Fluid : MonoBehaviour {
 
     [SerializeField] private Vector3 mRectMax;
 
+    [SerializeField] private float mDensity = 1.0f;
+
     private int mParticlesNumber;
     private Vector3[] mPosition;
+    private Vector3[] mPredictPosition;
     private Vector3[] mVelocity;
 
     private Bounds mBounds;
@@ -29,6 +32,7 @@ public class Fluid : MonoBehaviour {
         mParticlesNumber = xWidth * yWidth * zWidth;
         mPosition = new Vector3[mParticlesNumber];
         mVelocity = new Vector3[mParticlesNumber];
+        mPredictPosition = new Vector3[mParticlesNumber];
 
         Debug.Log(mParticlesNumber);
         mBounds = new Bounds(transform.position, transform.localScale);
@@ -53,10 +57,22 @@ public class Fluid : MonoBehaviour {
     }
 
     private void FixedUpdate() {
-        
+        Vector3 force = new Vector3(0, -9.8f, 0);
+        for (int i = 0; i < mParticlesNumber; ++i) {
+            mVelocity[i] += Time.fixedDeltaTime * force;
+            mPredictPosition[i] = mPosition[i] + Time.fixedDeltaTime * mVelocity[i];
+        }
+
+        // TODO:
+
+        for (int i = 0; i < mParticlesNumber; ++i) {
+            mPosition[i] = mPredictPosition[i];
+        }
     }
 
     private void Update() {
+        mPositionBuffer.SetData(mPosition);
+        mMaterial.SetBuffer("positionBuffer", mPositionBuffer);
         Graphics.DrawMeshInstancedProcedural(mMesh, 0, mMaterial, mBounds, mParticlesNumber);
     }
 }
