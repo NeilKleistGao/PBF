@@ -55,8 +55,7 @@ public class Fluid : MonoBehaviour {
         mMaterial.SetBuffer("positionBuffer", mPositionBuffer);
         mMaterial.SetFloat("scale", mRadius * 2);
     }
-
-    private void FixedUpdate() {
+    private void Update() {
         Vector3 force = new Vector3(0, -9.8f, 0);
         for (int i = 0; i < mParticlesNumber; ++i) {
             mVelocity[i] += Time.fixedDeltaTime * force;
@@ -68,9 +67,7 @@ public class Fluid : MonoBehaviour {
         for (int i = 0; i < mParticlesNumber; ++i) {
             mPosition[i] = mPredictPosition[i];
         }
-    }
 
-    private void Update() {
         mPositionBuffer.SetData(mPosition);
         mMaterial.SetBuffer("positionBuffer", mPositionBuffer);
         Graphics.DrawMeshInstancedProcedural(mMesh, 0, mMaterial, mBounds, mParticlesNumber);
