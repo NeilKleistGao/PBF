@@ -35,8 +35,10 @@ public class Fluid : MonoBehaviour {
     private int[] mGrid;
     private int[] mGridCounter;
     private int[] mGridEnd;
+    private int[] mNeighbors;
 
     private int mGridX, mGridY, mGridZ;
+    private static readonly int MAX_NEIGHBORS = 50;
 
     private Bounds mBounds;
 
@@ -50,11 +52,14 @@ public class Fluid : MonoBehaviour {
     private ComputeBuffer mGridBuffer;
     private ComputeBuffer mGridCounterBuffer;
     private ComputeBuffer mGridEndBuffer;
+    private ComputeBuffer mNeighborsBuffer;
 
     private int mApplyForceKernel;
     private int mUpdatePositionAndVelocityKernel;
     private int mHandleCollisionKernel;
     private int mInsertParticlesIntoGridKernel;
+
+    private int mGetNeighborsKernel;
 
     private void InitParticles() {
         int xWidth = Mathf.FloorToInt((mRectMax.x - mRectMin.x) * transform.localScale.x / mRadius / 2);
@@ -101,9 +106,13 @@ public class Fluid : MonoBehaviour {
         mGridZ = Mathf.CeilToInt((mGridMax.z - mGridMin.z) / mKernelRange);
 
         mGridsNumber = mGridX * mGridY * mGridZ;
-        mGrid = new int[mGridsNumber];
+        mGrid = new int[mParticlesNumber];
         mGridCounter = new int[mGridsNumber];
         mGridEnd = new int[mGridsNumber];
+
+        mNeighbors = new int[mParticlesNumber * (MAX_NEIGHBORS + 1)];
+        Debug.Log("Grids Number: " + mGridsNumber);
+        Debug.LogFormat("{0} x {1} x {2}", mGridX, mGridY, mGridZ);
     }
 
     void InitComputeShader() {
@@ -111,15 +120,17 @@ public class Fluid : MonoBehaviour {
         mUpdatePositionAndVelocityKernel = mSolver.FindKernel("UpdatePositionAndVelocity");
         mHandleCollisionKernel = mSolver.FindKernel("HandleCollision");
         mInsertParticlesIntoGridKernel = mSolver.FindKernel("InsertParticlesIntoGrid");
+        mGetNeighborsKernel = mSolver.FindKernel("GetNeighbors");
 
         mPositionBuffer = new ComputeBuffer(mParticlesNumber, 12);
         mPredictionPositionBuffer = new ComputeBuffer(mParticlesNumber, 12);
         mVelocityBuffer = new ComputeBuffer(mParticlesNumber, 12);
         mWallsNormalBuffer = new ComputeBuffer(mWalls.Length, 12);
         mWallsPositionBuffer = new ComputeBuffer(mWalls.Length, 12);
-        mGridBuffer = new ComputeBuffer(mGridsNumber, 4);
+        mGridBuffer = new ComputeBuffer(mParticlesNumber, 4);
         mGridCounterBuffer = new ComputeBuffer(mGridsNumber, 4);
         mGridEndBuffer = new ComputeBuffer(mGridsNumber, 4);
+        mNeighborsBuffer = new ComputeBuffer(mParticlesNumber * (MAX_NEIGHBORS + 1), 4);
 
         mPositionBuffer.SetData(mPosition);
         mPredictionPositionBuffer.SetData(mPredictionPosition);
@@ -129,6 +140,7 @@ public class Fluid : MonoBehaviour {
         mGridBuffer.SetData(mGrid);
         mGridCounterBuffer.SetData(mGridCounter);
         mGridEndBuffer.SetData(mGridEnd);
+        mNeighborsBuffer.SetData(mNeighbors);
 
         mSolver.SetBuffer(mApplyForceKernel, "gPosition", mPositionBuffer);
         mSolver.SetBuffer(mApplyForceKernel, "gPredictionPosition", mPredictionPositionBuffer);
@@ -147,6 +159,11 @@ public class Fluid : MonoBehaviour {
         mSolver.SetBuffer(mInsertParticlesIntoGridKernel, "gGrid", mGridBuffer);
         mSolver.SetBuffer(mInsertParticlesIntoGridKernel, "gGridCounter", mGridCounterBuffer);
         mSolver.SetBuffer(mInsertParticlesIntoGridKernel, "gGridEnd", mGridEndBuffer);
+
+        mSolver.SetBuffer(mGetNeighborsKernel, "gPredictionPosition", mPredictionPositionBuffer);
+        mSolver.SetBuffer(mGetNeighborsKernel, "gGrid", mGridBuffer);
+        mSolver.SetBuffer(mGetNeighborsKernel, "gGridEnd", mGridEndBuffer);
+        mSolver.SetBuffer(mGetNeighborsKernel, "gNeighbors", mNeighborsBuffer);
     }
 
     private void Awake() {
@@ -176,8 +193,19 @@ public class Fluid : MonoBehaviour {
             mSolver.SetInt("gGirdZ", mGridZ);
             mSolver.SetInt("gGridSize", mGridsNumber);
             mSolver.SetVector("gGridOrigin", mGridMin);
+            mSolver.SetInt("gMaxNeighborsCount", MAX_NEIGHBORS + 1);
 
             mSolver.Dispatch(mInsertParticlesIntoGridKernel, 1, 1, 1);
+
+            int blockSize = Mathf.CeilToInt(mParticlesNumber / 1024.0f);
+            mSolver.SetInt("gBlockSize", blockSize);
+            mSolver.Dispatch(mGetNeighborsKernel, blockSize, 1, 1);
+            // int[] debug = new int[mNeighbors.Length];
+            // mNeighborsBuffer.GetData(debug);
+            // Debug.Log(debug[0]);
+            // for (int i = 0; i < debug[0]; ++i) {
+            //     Debug.Log(debug[i + 1]);
+            // }
         }
 
         // TODO: calculate lambda
