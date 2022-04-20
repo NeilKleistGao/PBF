@@ -188,24 +188,23 @@ public class Fluid : MonoBehaviour {
 
         // find neighbors
         {
-            mSolver.SetInt("gGirdX", mGridX);
-            mSolver.SetInt("gGirdY", mGridY);
-            mSolver.SetInt("gGirdZ", mGridZ);
-            mSolver.SetInt("gGridSize", mGridsNumber);
-            mSolver.SetVector("gGridOrigin", mGridMin);
-            mSolver.SetInt("gMaxNeighborsCount", MAX_NEIGHBORS + 1);
+            // mSolver.SetInt("gGirdX", mGridX);
+            // mSolver.SetInt("gGirdY", mGridY);
+            // mSolver.SetInt("gGirdZ", mGridZ);
+            // mSolver.SetInt("gGridSize", mGridsNumber);
+            // mSolver.SetVector("gGridOrigin", mGridMin);
+            // mSolver.SetInt("gMaxNeighborsCount", MAX_NEIGHBORS + 1);
 
-            mSolver.Dispatch(mInsertParticlesIntoGridKernel, 1, 1, 1);
+            // mSolver.Dispatch(mInsertParticlesIntoGridKernel, 1, 1, 1);
+            // mGridEndBuffer.GetData(mGridEnd);
+            // for (int i = 0; i < mGridEnd.Length; ++i) {
+            //     Debug.LogFormat("{0}: {1}", i, mGridEnd[i]);
+            // }
 
             int blockSize = Mathf.CeilToInt(mParticlesNumber / 1024.0f);
+            mSolver.SetInt("gMaxNeighborsCount", MAX_NEIGHBORS + 1);
             mSolver.SetInt("gBlockSize", blockSize);
             mSolver.Dispatch(mGetNeighborsKernel, blockSize, 1, 1);
-            // int[] debug = new int[mNeighbors.Length];
-            // mNeighborsBuffer.GetData(debug);
-            // Debug.Log(debug[0]);
-            // for (int i = 0; i < debug[0]; ++i) {
-            //     Debug.Log(debug[i + 1]);
-            // }
         }
 
         // TODO: calculate lambda

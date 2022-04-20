@@ -70,7 +70,7 @@ uniform float3 gGridOrigin;
 uniform float gKernelRange;
 
 uint Vector3ToUint(uint3 pVec, uint3 pWidth) {
-    return pVec.x * pWidth.y * pWidth.z + pVec.y * pWidth.z + pVec.z;
+    return pVec.x * 120 + pVec.y * 10 + pVec.z; // TODO
 }
 
 uint3 GetGridVector(float3 pPosition, float3 pOrigin, float pRange) {
@@ -142,45 +142,17 @@ uniform uint gMaxNeighborsCount;
 void GetNeighbors(uint3 pID : SV_DispatchThreadID) {
     uint id = pID.x;
     while (id < gParticlesNumber) {
-        gNeighbors[id * gMaxNeighborsCount] = 0;
-        uint3 posVec = GetGridVector(gPredictionPosition[id], gGridOrigin, gKernelRange);
-        for (int i = -1; i < 2; ++i) {
-            if (posVec.x + i < 0) {
-                continue;
-            }
-
-            for (int j = -1; j < 2; ++j) {
-                if (posVec.y + j < 0) {
-                    continue;
-                }
-
-                for (int k = -1; k < 2; ++k) {
-                    if (posVec.z + k < 0) {
-                        continue;
-                    }
-                    
-                    uint3 nextVec = uint3(posVec.x + i, posVec.y + j, posVec.z + k);
-                    uint nextID = Vector3ToUint(nextVec, uint3(gGirdX, gGridY, gGridZ));
-
-                    int start = 0;
-                    if (nextID > 0) {
-                        start = gGridEnd[nextID - 1];
-                    }
-                    
-                    for (int m = start; m < gGridEnd[nextID]; ++m) {
-                        uint potentialNeighbor = gGrid[m];
-                        if (potentialNeighbor != id) {
-                            float3 subVec = gPredictionPosition[id] - gPredictionPosition[potentialNeighbor];
-                            float dis2 = dot(subVec, subVec);
-                            if (dis2 <= gKernelRange * gKernelRange) {
-                                ++gNeighbors[id * gMaxNeighborsCount];
-                                gNeighbors[id * gMaxNeighborsCount + gNeighbors[id * gMaxNeighborsCount]] = potentialNeighbor;
-                                if (gNeighbors[id * gMaxNeighborsCount] == gMaxNeighborsCount - 1) {
-                                    i = 2; j = 2; k = 2; m = gGridEnd[nextID];
-                                }
-                            }
-                        }
-                        
+        int countID = id * gMaxNeighborsCount;
+        gNeighbors[countID] = 0;
+        for (int i = 0; i < gParticlesNumber; ++i) {
+            if (i != id) {
+                float3 subVec = gPredictionPosition[i] - gPredictionPosition[id];
+                float dis2 = dot(subVec, subVec);
+                if (dis2 <= gKernelRange * gKernelRange) {
+                    ++gNeighbors[countID];
+                    gNeighbors[countID + gNeighbors[countID]] = i;
+                    if (gNeighbors[countID] == gMaxNeighborsCount - 1) {
+                        break;
                     }
                 }
             }
