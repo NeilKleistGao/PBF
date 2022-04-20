@@ -17,12 +17,26 @@ public class Fluid : MonoBehaviour {
 
     [SerializeField] private Wall[] mWalls;
 
+    [SerializeField] private Vector3 mGridMin;
+    [SerializeField] private Vector3 mGridMax;
+
+    [SerializeField] private float mKernelRange;
+
     private int mParticlesNumber;
+
+    private int mGridsNumber;
+
     private Vector3[] mPosition;
     private Vector3[] mPredictionPosition;
     private Vector3[] mVelocity;
     private Vector3[] mWallsNormal;
     private Vector3[] mWallsPosition;
+
+    private int[] mGrid;
+    private int[] mGridCounter;
+    private int[] mGridEnd;
+
+    private int mGridX, mGridY, mGridZ;
 
     private Bounds mBounds;
 
@@ -33,9 +47,14 @@ public class Fluid : MonoBehaviour {
     private ComputeBuffer mWallsNormalBuffer;
     private ComputeBuffer mWallsPositionBuffer;
 
+    private ComputeBuffer mGridBuffer;
+    private ComputeBuffer mGridCounterBuffer;
+    private ComputeBuffer mGridEndBuffer;
+
     private int mApplyForceKernel;
     private int mUpdatePositionAndVelocityKernel;
     private int mHandleCollisionKernel;
+    private int mInsertParticlesIntoGridKernel;
 
     private void InitParticles() {
         int xWidth = Mathf.FloorToInt((mRectMax.x - mRectMin.x) * transform.localScale.x / mRadius / 2);
@@ -74,24 +93,42 @@ public class Fluid : MonoBehaviour {
             mWallsNormal[i] = mWalls[i].mNormal;
             mWallsPosition[i] = mWalls[i].transform.position;
         }
-    } 
+    }
+
+    void InitGrid() {
+        mGridX = Mathf.CeilToInt((mGridMax.x - mGridMin.x) / mKernelRange);
+        mGridY = Mathf.CeilToInt((mGridMax.y - mGridMin.y) / mKernelRange);
+        mGridZ = Mathf.CeilToInt((mGridMax.z - mGridMin.z) / mKernelRange);
+
+        mGridsNumber = mGridX * mGridY * mGridZ;
+        mGrid = new int[mGridsNumber];
+        mGridCounter = new int[mGridsNumber];
+        mGridEnd = new int[mGridsNumber];
+    }
 
     void InitComputeShader() {
         mApplyForceKernel = mSolver.FindKernel("ApplyForce");
         mUpdatePositionAndVelocityKernel = mSolver.FindKernel("UpdatePositionAndVelocity");
         mHandleCollisionKernel = mSolver.FindKernel("HandleCollision");
+        mInsertParticlesIntoGridKernel = mSolver.FindKernel("InsertParticlesIntoGrid");
 
         mPositionBuffer = new ComputeBuffer(mParticlesNumber, 12);
         mPredictionPositionBuffer = new ComputeBuffer(mParticlesNumber, 12);
         mVelocityBuffer = new ComputeBuffer(mParticlesNumber, 12);
         mWallsNormalBuffer = new ComputeBuffer(mWalls.Length, 12);
         mWallsPositionBuffer = new ComputeBuffer(mWalls.Length, 12);
+        mGridBuffer = new ComputeBuffer(mGridsNumber, 4);
+        mGridCounterBuffer = new ComputeBuffer(mGridsNumber, 4);
+        mGridEndBuffer = new ComputeBuffer(mGridsNumber, 4);
 
         mPositionBuffer.SetData(mPosition);
         mPredictionPositionBuffer.SetData(mPredictionPosition);
         mVelocityBuffer.SetData(mVelocity);
         mWallsNormalBuffer.SetData(mWallsNormal);
         mWallsPositionBuffer.SetData(mWallsPosition);
+        mGridBuffer.SetData(mGrid);
+        mGridCounterBuffer.SetData(mGridCounter);
+        mGridEndBuffer.SetData(mGridEnd);
 
         mSolver.SetBuffer(mApplyForceKernel, "gPosition", mPositionBuffer);
         mSolver.SetBuffer(mApplyForceKernel, "gPredictionPosition", mPredictionPositionBuffer);
@@ -105,11 +142,17 @@ public class Fluid : MonoBehaviour {
         mSolver.SetBuffer(mHandleCollisionKernel, "gVelocity", mVelocityBuffer);
         mSolver.SetBuffer(mHandleCollisionKernel, "gWallsNormal", mWallsNormalBuffer);
         mSolver.SetBuffer(mHandleCollisionKernel, "gWallsPosition", mWallsPositionBuffer);
+
+        mSolver.SetBuffer(mInsertParticlesIntoGridKernel, "gPredictionPosition", mPredictionPositionBuffer);
+        mSolver.SetBuffer(mInsertParticlesIntoGridKernel, "gGrid", mGridBuffer);
+        mSolver.SetBuffer(mInsertParticlesIntoGridKernel, "gGridCounter", mGridCounterBuffer);
+        mSolver.SetBuffer(mInsertParticlesIntoGridKernel, "gGridEnd", mGridEndBuffer);
     }
 
     private void Awake() {
         InitParticles();
         InitWalls();
+        InitGrid();
         InitComputeShader();
     }
 
@@ -117,6 +160,7 @@ public class Fluid : MonoBehaviour {
         mSolver.SetInt("gParticlesNumber", mParticlesNumber);
         mSolver.SetInt("gWallSize", mWalls.Length);
         mSolver.SetFloat("gRadius", mRadius);
+        mSolver.SetFloat("gKernelRange", mKernelRange);
 
         // apply force
         {
@@ -125,7 +169,17 @@ public class Fluid : MonoBehaviour {
             mSolver.Dispatch(mApplyForceKernel, blockSize, 1, 1);
         }
 
-        // TODO: find neighbors
+        // find neighbors
+        {
+            mSolver.SetInt("gGirdX", mGridX);
+            mSolver.SetInt("gGirdY", mGridY);
+            mSolver.SetInt("gGirdZ", mGridZ);
+            mSolver.SetInt("gGridSize", mGridsNumber);
+            mSolver.SetVector("gGridOrigin", mGridMin);
+
+            mSolver.Dispatch(mInsertParticlesIntoGridKernel, 1, 1, 1);
+        }
+
         // TODO: calculate lambda
         // collision detection
         {

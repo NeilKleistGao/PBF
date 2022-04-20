@@ -57,3 +57,81 @@ void HandleCollision(uint3 pID : SV_DispatchThreadID) {
         id += MAX_THREAD_X * gBlockSize;
     }
 }
+
+RWStructuredBuffer<int> gGrid;
+RWStructuredBuffer<int> gGridCounter;
+RWStructuredBuffer<int> gGridEnd;
+
+uniform uint gGirdX;
+uniform uint gGridY;
+uniform uint gGridZ;
+uniform uint gGridSize;
+uniform float3 gGridOrigin;
+uniform float gKernelRange;
+
+uint Vector3ToUint(uint x, uint y, uint z) {
+    return x * gGridY * gGridZ + y * gGridZ + z;
+}
+
+uint GetGridIndex(float3 pPosition) {
+    pPosition = pPosition - gGridOrigin;
+    uint dx = (uint)floor(pPosition.x / gKernelRange);
+    uint dy = (uint)floor(pPosition.y / gKernelRange);
+    uint dz = (uint)floor(pPosition.z / gKernelRange);
+
+    return Vector3ToUint(dx, dy, dz);
+} 
+
+#pragma kernel InsertParticlesIntoGrid
+[numthreads(MAX_THREAD_X, 1, 1)]
+void InsertParticlesIntoGrid(uint3 pID : SV_DispatchThreadID) {
+    {
+        uint id = pID.x;
+        while (id < gGridSize) {
+            gGridCounter[id] = 0;
+            id += MAX_THREAD_X;
+        }
+
+        id = pID.x;
+        while (id < gParticlesNumber) {
+            gGrid[id] = 0;
+            id += MAX_THREAD_X;
+        }
+    }
+
+    AllMemoryBarrierWithGroupSync();
+
+    {
+        uint id = pID.x;
+        while (id < gParticlesNumber) {
+            uint gridIndex = GetGridIndex(gPredictionPosition[id]);
+            InterlockedAdd(gGridCounter[gridIndex], 1);
+            id += MAX_THREAD_X;
+        }
+    }
+
+    AllMemoryBarrierWithGroupSync();
+
+    if (pID.x == 42) {
+        for (int i = 1; i < gGridSize; ++i) {
+            gGridCounter[i] = gGridCounter[i - 1] + gGridCounter[i];
+            gGridEnd[i] = gGridCounter[i];
+        }
+    }
+    AllMemoryBarrierWithGroupSync();
+
+    {
+        uint id = pID.x;
+        while (id < gParticlesNumber) {
+            uint gridIndex = GetGridIndex(gPredictionPosition[id]);
+            uint index;
+            InterlockedAdd(gGridCounter[id], -1, index);
+            if (gridIndex > 0) {
+                index = index + gGridEnd[gridIndex - 1];
+            }
+
+            gGrid[index] = id;
+            id += MAX_THREAD_X;
+        }
+    }
+}
