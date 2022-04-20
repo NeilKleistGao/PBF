@@ -27,6 +27,8 @@ void UpdatePositionAndVelocity(uint3 pID : SV_DispatchThreadID) {
     uint id = pID.x;
     while (id < gParticlesNumber) {
         gPosition[id] = gPredictionPosition[id];
+        gVelocity[id] = INV_DELTA_T * (gPredictionPosition[id] - gPosition[id]);
+        //TODO:
 
         id += MAX_THREAD_X * gBlockSize;
     }
@@ -58,8 +60,6 @@ void HandleCollision(uint3 pID : SV_DispatchThreadID) {
     }
 }
 
-uniform float gKernelRange;
-
 RWStructuredBuffer<int> gNeighbors;
 
 uniform uint gMaxNeighborsCount;
@@ -87,4 +87,39 @@ void GetNeighbors(uint3 pID : SV_DispatchThreadID) {
 
         id += MAX_THREAD_X * gBlockSize;
     }
+}
+
+RWStructuredBuffer<float> gLambda;
+
+uniform float gDensity;
+uniform float gMass;
+uniform float gKernelRange;
+
+#define PI 3.1415927
+
+float Poly6(float3 pDelta, float pRange) {
+    float r2 = dot(pDelta, pDelta);
+    return 315.0 / (64 * PI * pow(pRange, 9)) * pow((pRange * pRange - r2), 3);
+}
+
+float Spiky(float3 pDelta, float pRange) {
+    float r = sqrt(dot(pDelta, pDelta));
+    return 15 / (PI * pow(pRange, 6)) * pow((pRange - r), 3);
+}
+
+#pragma kernel CalculateLambda
+[numthreads(MAX_THREAD_X, 1, 1)]
+void CalculateLambda(uint3 pID : SV_DispatchThreadID) {
+    uint id = pID.x;
+    while (id < gParticlesNumber) {
+        
+
+        id += MAX_THREAD_X * gBlockSize;
+    }
+}
+
+#pragma kernel UpdatePosition
+[numthreads(MAX_THREAD_X, 1, 1)]
+void UpdatePosition(uint3 pID : SV_DispatchThreadID) {
+    // TODO:
 }
