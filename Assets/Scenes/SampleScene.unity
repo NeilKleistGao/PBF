@@ -173,10 +173,9 @@ MonoBehaviour:
   mRadius: 0.075
   mRectMin: {x: -1, y: -1, z: -1}
   mRectMax: {x: 1, y: 1, z: 1}
-  mDensity: 1
   mWalls:
-  - {fileID: 689020422}
   - {fileID: 1341093775}
+  - {fileID: 689020422}
   - {fileID: 1515757551}
   - {fileID: 2039506896}
   - {fileID: 1485743049}

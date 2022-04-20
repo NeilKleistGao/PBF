@@ -7,6 +7,7 @@ uniform uint gBlockSize;
 
 #define MAX_THREAD_X 1024
 #define DELTA_T  0.01667
+#define INV_DELTA_T 60
 
 #pragma kernel ApplyForce
 [numthreads(MAX_THREAD_X, 1, 1)]
@@ -26,6 +27,36 @@ void UpdatePositionAndVelocity(uint3 pID : SV_DispatchThreadID) {
     uint id = pID.x;
     while (id < gParticlesNumber) {
         gPosition[id] = gPredictionPosition[id];
+
+        id += MAX_THREAD_X * gBlockSize;
+    }
+}
+
+RWStructuredBuffer<float3> gWallsNormal;
+RWStructuredBuffer<float3> gWallsPosition;
+
+uniform float gRadius;
+uniform uint gWallSize;
+
+#pragma kernel HandleCollision
+[numthreads(MAX_THREAD_X, 1, 1)]
+void HandleCollision(uint3 pID : SV_DispatchThreadID) {
+    uint id = pID.x;
+    uint wallID = 0;
+
+    while (id < gParticlesNumber) {
+        wallID = 0;
+        while (wallID < gWallSize) {
+            float3 n = gWallsNormal[wallID];
+            float3 p = gWallsPosition[wallID];
+            float sdf = dot(gPredictionPosition[id] - p, n) - gRadius;
+            if (sdf < 0) {
+                gPredictionPosition[id] -= sdf * n;
+                gVelocity[id] -= (sdf * n) * INV_DELTA_T;
+            }
+
+            wallID = wallID + 1;
+        }
 
         id += MAX_THREAD_X * gBlockSize;
     }
