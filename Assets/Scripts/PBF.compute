@@ -93,18 +93,26 @@ void GetNeighbors(uint3 pID : SV_DispatchThreadID) {
 RWStructuredBuffer<float> gLambda;
 
 uniform float gDensity;
-uniform float gMass;
 
 #define PI 3.1415927
 
 float Poly6(float3 pDelta, float pRange) {
     float r2 = dot(pDelta, pDelta);
-    return 315.0 / (64 * PI * pow(pRange, 9)) * pow((pRange * pRange - r2), 3);
+    return 315.0f / 64 / PI / pow(pRange, 9) * pow((pRange * pRange - r2), 3);
 }
 
-float Spiky(float3 pDelta, float pRange) {
-    float r = sqrt(dot(pDelta, pDelta));
-    return 15 / (PI * pow(pRange, 6)) * pow((pRange - r), 3);
+float Poly6Scale(float r2, float pRange) {
+    return 315.0f / (64 * PI * pow(pRange, 9)) * pow((pRange * pRange - r2), 3);
+}
+
+float3 SpikyGradient(float3 pDelta, float pRange) {
+    float r = length(pDelta);
+    if (pRange < r) {
+        return float3(0, 0, 0);
+    }
+
+    float cof = -45.0f / PI / pow(pRange, 6);
+    return pow(pRange - r, 2) * cof * normalize(pDelta);
 }
 
 #pragma kernel CalculateLambda
@@ -112,8 +120,26 @@ float Spiky(float3 pDelta, float pRange) {
 void CalculateLambda(uint3 pID : SV_DispatchThreadID) {
     uint id = pID.x;
     while (id < gParticlesNumber) {
-        
+        float numerator = 0;
+        float denomimator = 0;
+        int countID = id * gMaxNeighborsCount;
+        float3 selfGradient = float3(0, 0, 0);
 
+        for (int i = 0; i < gNeighbors[countID]; ++i) {
+            int neighbor = gNeighbors[countID + i + 1];
+            float3 selfPosition = gPredictionPosition[id];
+            float3 neighborPosition = gPredictionPosition[neighbor];
+            float3 sub = selfPosition - neighborPosition;
+
+            numerator += Poly6(sub, gKernelRange);
+            float3 nabla = SpikyGradient(sub, gKernelRange) / gDensity;
+            denomimator += dot(nabla, nabla);
+            selfGradient += nabla;
+        }
+
+        numerator = numerator / gDensity - 1;
+        denomimator += dot(selfGradient, selfGradient);
+        gLambda[id] = -numerator / (denomimator + 100);
         id += MAX_THREAD_X * gBlockSize;
     }
 }
@@ -121,5 +147,20 @@ void CalculateLambda(uint3 pID : SV_DispatchThreadID) {
 #pragma kernel UpdatePosition
 [numthreads(MAX_THREAD_X, 1, 1)]
 void UpdatePosition(uint3 pID : SV_DispatchThreadID) {
-    // TODO:
+    uint id = pID.x;
+    while (id < gParticlesNumber) {
+        float3 deltaPos = float3(0, 0, 0);
+        int countID = id * gMaxNeighborsCount;
+        for (int i = 0; i < gNeighbors[countID]; ++i) {
+            int neighbor = gNeighbors[countID + i + 1];
+            float3 sub = gPredictionPosition[id] - gPredictionPosition[neighbor];
+
+            // float s = -0.1 * pow(Poly6(sub, gKernelRange) / Poly6Scale(0.1 * gKernelRange, gKernelRange), 4);
+            float3 gradient = SpikyGradient(sub, gKernelRange);
+            deltaPos += (gLambda[id] + gLambda[neighbor]) * gradient;
+        }
+
+        gPredictionPosition[id] += deltaPos / gDensity;
+        id += MAX_THREAD_X * gBlockSize;
+    }
 }

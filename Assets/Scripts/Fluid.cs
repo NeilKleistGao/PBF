@@ -22,6 +22,8 @@ public class Fluid : MonoBehaviour {
 
     [SerializeField] private float mKernelRange;
 
+    [SerializeField] private float mDensity;
+
     private int mParticlesNumber;
 
     private Vector3[] mPosition;
@@ -31,25 +33,26 @@ public class Fluid : MonoBehaviour {
     private Vector3[] mWallsPosition;
 
     private int[] mNeighbors;
+    private float[] mLambda;
 
     private static readonly int MAX_NEIGHBORS = 50;
 
     private Bounds mBounds;
 
     private ComputeBuffer mPositionBuffer;
-
     private ComputeBuffer mPredictionPositionBuffer;
     private ComputeBuffer mVelocityBuffer;
     private ComputeBuffer mWallsNormalBuffer;
     private ComputeBuffer mWallsPositionBuffer;
-
     private ComputeBuffer mNeighborsBuffer;
+    private ComputeBuffer mLambdaBuffer;
 
     private int mApplyForceKernel;
     private int mUpdatePositionAndVelocityKernel;
     private int mHandleCollisionKernel;
-
     private int mGetNeighborsKernel;
+    private int mCalculateLambdaKernel;
+    private int mUpdatePositionKernel;
 
     private void InitParticles() {
         int xWidth = Mathf.FloorToInt((mRectMax.x - mRectMin.x) * transform.localScale.x / mRadius / 2);
@@ -61,6 +64,7 @@ public class Fluid : MonoBehaviour {
         mVelocity = new Vector3[mParticlesNumber];
         mPredictionPosition = new Vector3[mParticlesNumber];
         mNeighbors = new int[mParticlesNumber * (MAX_NEIGHBORS + 1)];
+        mLambda = new float[mParticlesNumber];
 
         Debug.Log("Particles Number: " + mParticlesNumber);
         mBounds = new Bounds(transform.position, transform.localScale);
@@ -96,6 +100,8 @@ public class Fluid : MonoBehaviour {
         mUpdatePositionAndVelocityKernel = mSolver.FindKernel("UpdatePositionAndVelocity");
         mHandleCollisionKernel = mSolver.FindKernel("HandleCollision");
         mGetNeighborsKernel = mSolver.FindKernel("GetNeighbors");
+        mCalculateLambdaKernel = mSolver.FindKernel("CalculateLambda");
+        mUpdatePositionKernel = mSolver.FindKernel("UpdatePosition");
 
         mPositionBuffer = new ComputeBuffer(mParticlesNumber, 12);
         mPredictionPositionBuffer = new ComputeBuffer(mParticlesNumber, 12);
@@ -103,6 +109,7 @@ public class Fluid : MonoBehaviour {
         mWallsNormalBuffer = new ComputeBuffer(mWalls.Length, 12);
         mWallsPositionBuffer = new ComputeBuffer(mWalls.Length, 12);
         mNeighborsBuffer = new ComputeBuffer(mParticlesNumber * (MAX_NEIGHBORS + 1), 4);
+        mLambdaBuffer = new ComputeBuffer(mParticlesNumber, 4);
 
         mPositionBuffer.SetData(mPosition);
         mPredictionPositionBuffer.SetData(mPredictionPosition);
@@ -110,6 +117,7 @@ public class Fluid : MonoBehaviour {
         mWallsNormalBuffer.SetData(mWallsNormal);
         mWallsPositionBuffer.SetData(mWallsPosition);
         mNeighborsBuffer.SetData(mNeighbors);
+        mLambdaBuffer.SetData(mLambda);
 
         mSolver.SetBuffer(mApplyForceKernel, "gPosition", mPositionBuffer);
         mSolver.SetBuffer(mApplyForceKernel, "gPredictionPosition", mPredictionPositionBuffer);
@@ -126,6 +134,14 @@ public class Fluid : MonoBehaviour {
 
         mSolver.SetBuffer(mGetNeighborsKernel, "gPredictionPosition", mPredictionPositionBuffer);
         mSolver.SetBuffer(mGetNeighborsKernel, "gNeighbors", mNeighborsBuffer);
+
+        mSolver.SetBuffer(mCalculateLambdaKernel, "gPredictionPosition", mPredictionPositionBuffer);
+        mSolver.SetBuffer(mCalculateLambdaKernel, "gNeighbors", mNeighborsBuffer);
+        mSolver.SetBuffer(mCalculateLambdaKernel, "gLambda", mLambdaBuffer);
+
+        mSolver.SetBuffer(mUpdatePositionKernel, "gPredictionPosition", mPredictionPositionBuffer);
+        mSolver.SetBuffer(mUpdatePositionKernel, "gNeighbors", mNeighborsBuffer);
+        mSolver.SetBuffer(mUpdatePositionKernel, "gLambda", mLambdaBuffer);
     }
 
     private void Awake() {
@@ -139,6 +155,7 @@ public class Fluid : MonoBehaviour {
         mSolver.SetInt("gWallSize", mWalls.Length);
         mSolver.SetFloat("gRadius", mRadius);
         mSolver.SetFloat("gKernelRange", mKernelRange);
+        mSolver.SetFloat("gDensity", mDensity);
 
         // apply force
         {
@@ -155,8 +172,18 @@ public class Fluid : MonoBehaviour {
             mSolver.Dispatch(mGetNeighborsKernel, blockSize, 1, 1);
         }
 
-        for (int i = 0; i < 4; ++i) {
-            // TODO: calculate lambda
+        for (int i = 0; i < 1; ++i) {
+            // calculate lambda
+            {
+                int blockSize = Mathf.CeilToInt(mParticlesNumber / 1024.0f);
+                mSolver.SetInt("gBlockSize", blockSize);
+                mSolver.Dispatch(mCalculateLambdaKernel, blockSize, 1, 1);
+                // mLambdaBuffer.GetData(mLambda);
+                // foreach (float lmd in mLambda) {
+                //     Debug.Log(lmd);
+                // }
+            }
+
             // collision detection
             {
                 int blockSize = Mathf.CeilToInt(mParticlesNumber / 1024.0f);
@@ -164,7 +191,16 @@ public class Fluid : MonoBehaviour {
                 mSolver.Dispatch(mHandleCollisionKernel, blockSize, 1, 1);
             }
 
-            // TODO: update position
+            // update position
+            {
+                int blockSize = Mathf.CeilToInt(mParticlesNumber / 1024.0f);
+                mSolver.SetInt("gBlockSize", blockSize);
+                mSolver.Dispatch(mUpdatePositionKernel, blockSize, 1, 1);
+                // mPredictionPositionBuffer.GetData(mPredictionPosition);
+                // foreach (var fuck in mPredictionPosition) {
+                //     Debug.Log(fuck);
+                // }
+            }
         }
 
         // TODO: apply viscocity

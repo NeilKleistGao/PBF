@@ -181,7 +181,8 @@ MonoBehaviour:
   - {fileID: 1485743049}
   mGridMin: {x: -2, y: -1, z: -8}
   mGridMax: {x: 2, y: 5, z: -3}
-  mKernelRange: 0.5
+  mKernelRange: 1
+  mDensity: 1
 --- !u!1001 &689020420
 PrefabInstance:
   m_ObjectHideFlags: 0
