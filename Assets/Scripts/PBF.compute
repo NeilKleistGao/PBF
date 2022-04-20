@@ -26,8 +26,8 @@ void ApplyForce(uint3 pID : SV_DispatchThreadID) {
 void UpdatePositionAndVelocity(uint3 pID : SV_DispatchThreadID) {
     uint id = pID.x;
     while (id < gParticlesNumber) {
-        gPosition[id] = gPredictionPosition[id];
         gVelocity[id] = INV_DELTA_T * (gPredictionPosition[id] - gPosition[id]);
+        gPosition[id] = gPredictionPosition[id];
         //TODO:
 
         id += MAX_THREAD_X * gBlockSize;
@@ -63,6 +63,7 @@ void HandleCollision(uint3 pID : SV_DispatchThreadID) {
 RWStructuredBuffer<int> gNeighbors;
 
 uniform uint gMaxNeighborsCount;
+uniform float gKernelRange;
 
 #pragma kernel GetNeighbors
 [numthreads(MAX_THREAD_X, 1, 1)]
@@ -93,7 +94,6 @@ RWStructuredBuffer<float> gLambda;
 
 uniform float gDensity;
 uniform float gMass;
-uniform float gKernelRange;
 
 #define PI 3.1415927
 
