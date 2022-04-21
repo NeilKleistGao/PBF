@@ -33,6 +33,14 @@ float Poly6(float3 pDelta, float pRange) {
     return 315.0f / 64 / PI / pow(pRange, 9) * pow(pRange * pRange - r2, 3);
 }
 
+float Poly6Scale(float r2, float pRange) {
+    if (pRange * pRange - r2 < 0) {
+        return 0;
+    }
+
+    return 315.0f / 64 / PI / pow(pRange, 9) * pow(pRange * pRange - r2, 3);
+}
+
 float3 SpikyGradient(float3 pDelta, float pRange) {
     float r = length(pDelta);
     if (pRange < r) {
@@ -120,9 +128,9 @@ void Update(uint3 pID : SV_DispatchThreadID) {
                     int neighbor = gNeighbors[id].nid[i];
                     float3 sub = gPredictionPosition[id] - gPredictionPosition[neighbor];
 
-                    // float s = -0.001 * pow(Poly6(sub, gKernelRange) / Poly6Scale(0.1 * gKernelRange, gKernelRange), 4);
+                    float s = -0.001 * pow(Poly6(sub, gKernelRange) / Poly6Scale(0.1 * gKernelRange, gKernelRange), 4);
                     float3 gradient = SpikyGradient(sub, gKernelRange);
-                    deltaPos += (gLambda[id] + gLambda[neighbor]) * gradient;
+                    deltaPos += (gLambda[id] + gLambda[neighbor] + s) * gradient;
                 }
 
                 gPredictionPosition[id] += deltaPos / gDensity;
