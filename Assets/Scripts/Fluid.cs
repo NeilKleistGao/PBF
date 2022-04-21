@@ -45,9 +45,9 @@ public class Fluid : MonoBehaviour {
     private int mUpdateKernel;
 
     private void InitParticles() {
-        int xWidth = Mathf.FloorToInt((mRectMax.x - mRectMin.x) * transform.localScale.x / mRadius / 2);
-        int yWidth = Mathf.FloorToInt((mRectMax.y - mRectMin.y) * transform.localScale.y / mRadius / 2);
-        int zWidth = Mathf.FloorToInt((mRectMax.z - mRectMin.z) * transform.localScale.z / mRadius / 2);
+        int xWidth = 20;
+        int yWidth = 20;
+        int zWidth = 10;
 
         mParticlesNumber = xWidth * yWidth * zWidth;
         mPosition = new Vector3[mParticlesNumber];
