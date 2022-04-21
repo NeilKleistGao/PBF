@@ -13,8 +13,6 @@ public class Fluid : MonoBehaviour {
 
     [SerializeField] private Vector3 mRectMin;
 
-    [SerializeField] private Vector3 mRectMax;
-
     [SerializeField] private Wall[] mWalls;
 
     [SerializeField] private float mKernelRange;
@@ -45,8 +43,8 @@ public class Fluid : MonoBehaviour {
     private int mUpdateKernel;
 
     private void InitParticles() {
-        int xWidth = 20;
-        int yWidth = 20;
+        int xWidth = 10;
+        int yWidth = 30;
         int zWidth = 10;
 
         mParticlesNumber = xWidth * yWidth * zWidth;

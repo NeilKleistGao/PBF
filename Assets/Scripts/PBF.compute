@@ -120,7 +120,7 @@ void Update(uint3 pID : SV_DispatchThreadID) {
                     int neighbor = gNeighbors[id].nid[i];
                     float3 sub = gPredictionPosition[id] - gPredictionPosition[neighbor];
 
-                    // float s = -0.1 * pow(Poly6(sub, gKernelRange) / Poly6Scale(0.1 * gKernelRange, gKernelRange), 4);
+                    // float s = -0.001 * pow(Poly6(sub, gKernelRange) / Poly6Scale(0.1 * gKernelRange, gKernelRange), 4);
                     float3 gradient = SpikyGradient(sub, gKernelRange);
                     deltaPos += (gLambda[id] + gLambda[neighbor]) * gradient;
                 }
