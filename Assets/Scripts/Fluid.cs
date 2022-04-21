@@ -116,8 +116,8 @@ public class Fluid : MonoBehaviour {
         mVelocityBuffer.SetData(mVelocity);
         mWallsNormalBuffer.SetData(mWallsNormal);
         mWallsPositionBuffer.SetData(mWallsPosition);
-        mNeighborsBuffer.SetData(mNeighbors);
-        mLambdaBuffer.SetData(mLambda);
+        // mNeighborsBuffer.SetData(mNeighbors);
+        // mLambdaBuffer.SetData(mLambda);
 
         mSolver.SetBuffer(mApplyForceKernel, "gPosition", mPositionBuffer);
         mSolver.SetBuffer(mApplyForceKernel, "gPredictionPosition", mPredictionPositionBuffer);
@@ -185,13 +185,13 @@ public class Fluid : MonoBehaviour {
             }
 
             // collision detection
-            {
-                int blockSize = Mathf.CeilToInt(mParticlesNumber / 1024.0f);
-                mSolver.SetInt("gBlockSize", blockSize);
-                mSolver.Dispatch(mHandleCollisionKernel, blockSize, 1, 1);
-            }
+            // {
+            //     int blockSize = Mathf.CeilToInt(mParticlesNumber / 1024.0f);
+            //     mSolver.SetInt("gBlockSize", blockSize);
+            //     mSolver.Dispatch(mHandleCollisionKernel, blockSize, 1, 1);
+            // }
 
-            // update position
+            // // update position
             {
                 int blockSize = Mathf.CeilToInt(mParticlesNumber / 1024.0f);
                 mSolver.SetInt("gBlockSize", blockSize);
