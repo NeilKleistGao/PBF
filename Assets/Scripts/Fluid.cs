@@ -185,11 +185,11 @@ public class Fluid : MonoBehaviour {
             }
 
             // collision detection
-            // {
-            //     int blockSize = Mathf.CeilToInt(mParticlesNumber / 1024.0f);
-            //     mSolver.SetInt("gBlockSize", blockSize);
-            //     mSolver.Dispatch(mHandleCollisionKernel, blockSize, 1, 1);
-            // }
+            {
+                int blockSize = Mathf.CeilToInt(mParticlesNumber / 1024.0f);
+                mSolver.SetInt("gBlockSize", blockSize);
+                mSolver.Dispatch(mHandleCollisionKernel, blockSize, 1, 1);
+            }
 
             // // update position
             {

@@ -26,7 +26,7 @@ void ApplyForce(uint3 pID : SV_DispatchThreadID) {
 void UpdatePositionAndVelocity(uint3 pID : SV_DispatchThreadID) {
     uint id = pID.x;
     while (id < gParticlesNumber) {
-        gVelocity[id] = INV_DELTA_T * (gPredictionPosition[id] - gPosition[id]);
+        // gVelocity[id] = INV_DELTA_T * (gPredictionPosition[id] - gPosition[id]);
         gPosition[id] = gPredictionPosition[id];
         //TODO:
 
@@ -52,7 +52,6 @@ void HandleCollision(uint3 pID : SV_DispatchThreadID) {
             float sdf = dot(gPredictionPosition[id] - p, n) - gRadius;
             if (sdf < 0) {
                 gPredictionPosition[id] -= sdf * n;
-                gVelocity[id] -= (sdf * n) * INV_DELTA_T;
             }
         }
 
