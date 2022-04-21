@@ -46,7 +46,7 @@ void HandleCollision(uint3 pID : SV_DispatchThreadID) {
     uint id = pID.x;
 
     while (id < gParticlesNumber) {
-        for (int i = 0; i < gWallSize; ++i) {
+        for (uint i = 0; i < gWallSize; ++i) {
             float3 n = gWallsNormal[i];
             float3 p = gWallsPosition[i];
             float sdf = dot(gPredictionPosition[id] - p, n) - gRadius;
@@ -62,7 +62,7 @@ void HandleCollision(uint3 pID : SV_DispatchThreadID) {
 
 RWStructuredBuffer<int> gNeighbors;
 
-uniform uint gMaxNeighborsCount;
+uniform int gMaxNeighborsCount;
 uniform float gKernelRange;
 
 #pragma kernel GetNeighbors
@@ -72,7 +72,7 @@ void GetNeighbors(uint3 pID : SV_DispatchThreadID) {
     while (id < gParticlesNumber) {
         int countID = id * gMaxNeighborsCount;
         gNeighbors[countID] = 0;
-        for (int i = 0; i < gParticlesNumber; ++i) {
+        for (uint i = 0; i < gParticlesNumber; ++i) {
             if (i != id) {
                 float3 subVec = gPredictionPosition[i] - gPredictionPosition[id];
                 float dis2 = dot(subVec, subVec);
@@ -98,7 +98,11 @@ uniform float gDensity;
 
 float Poly6(float3 pDelta, float pRange) {
     float r2 = dot(pDelta, pDelta);
-    return 315.0f / 64 / PI / pow(pRange, 9) * pow((pRange * pRange - r2), 3);
+    if (pRange * pRange - r2 < 0) {
+        return 0;
+    }
+
+    return 315.0f / 64 / PI / pow(pRange, 9) * pow(pRange * pRange - r2, 3);
 }
 
 float Poly6Scale(float r2, float pRange) {
