@@ -34,6 +34,7 @@ public class Fluid : MonoBehaviour {
     private ComputeBuffer mPositionBuffer;
     private ComputeBuffer mPredictionPositionBuffer;
     private ComputeBuffer mVelocityBuffer;
+    private ComputeBuffer mXVelocityBuffer;
     private ComputeBuffer mWallsNormalBuffer;
     private ComputeBuffer mWallsPositionBuffer;
     private ComputeBuffer mNeighborsBuffer;
@@ -41,6 +42,7 @@ public class Fluid : MonoBehaviour {
     private ComputeBuffer mLambdaBuffer;
 
     private int mUpdateKernel;
+    private int mApplyKernel;
 
     private void InitParticles() {
         int xWidth = 10;
@@ -83,6 +85,7 @@ public class Fluid : MonoBehaviour {
 
     void InitComputeShader() {
         mUpdateKernel = mSolver.FindKernel("Update");
+        mApplyKernel = mSolver.FindKernel("Apply");
 
         mPositionBuffer = new ComputeBuffer(mParticlesNumber, 12);
         mPredictionPositionBuffer = new ComputeBuffer(mParticlesNumber, 12);
@@ -92,6 +95,7 @@ public class Fluid : MonoBehaviour {
         mNeighborsBuffer = new ComputeBuffer(mParticlesNumber, 4 * MAX_NEIGHBORS);
         mNeighborCountBuffer = new ComputeBuffer(mParticlesNumber, 4);
         mLambdaBuffer = new ComputeBuffer(mParticlesNumber, 4);
+        mXVelocityBuffer = new ComputeBuffer(mParticlesNumber, 12);
 
         mPositionBuffer.SetData(mPosition);
         mPredictionPositionBuffer.SetData(mPredictionPosition);
@@ -107,6 +111,13 @@ public class Fluid : MonoBehaviour {
         mSolver.SetBuffer(mUpdateKernel, "gNeighbors", mNeighborsBuffer);
         mSolver.SetBuffer(mUpdateKernel, "gNeighborCount", mNeighborCountBuffer);
         mSolver.SetBuffer(mUpdateKernel, "gLambda", mLambdaBuffer);
+
+        mSolver.SetBuffer(mApplyKernel, "gPosition", mPositionBuffer);
+        mSolver.SetBuffer(mApplyKernel, "gPredictionPosition", mPredictionPositionBuffer);
+        mSolver.SetBuffer(mApplyKernel, "gVelocity", mVelocityBuffer);
+        mSolver.SetBuffer(mApplyKernel, "gNeighbors", mNeighborsBuffer);
+        mSolver.SetBuffer(mApplyKernel, "gNeighborCount", mNeighborCountBuffer);
+        mSolver.SetBuffer(mApplyKernel, "gXVelocity", mXVelocityBuffer);
     }
 
     private void Awake() {
@@ -126,6 +137,7 @@ public class Fluid : MonoBehaviour {
         int blockSize = Mathf.CeilToInt(mParticlesNumber / 1024.0f);
         mSolver.SetInt("gBlockSize", blockSize);
         mSolver.Dispatch(mUpdateKernel, blockSize, 1, 1);
+        mSolver.Dispatch(mApplyKernel, blockSize, 1, 1);
 
         // render
         mMaterial.SetBuffer("positionBuffer", mPositionBuffer);

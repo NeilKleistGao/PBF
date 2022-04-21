@@ -15,6 +15,7 @@ RWStructuredBuffer<float3> gWallsPosition;
 RWStructuredBuffer<Neighbors> gNeighbors;
 RWStructuredBuffer<int> gNeighborCount;
 RWStructuredBuffer<float> gLambda;
+RWStructuredBuffer<float3> gXVelocity;
 
 uniform uint gParticlesNumber;
 uniform uint gBlockSize;
@@ -156,18 +157,35 @@ void Update(uint3 pID : SV_DispatchThreadID) {
 
                 id += MAX_THREAD_X * gBlockSize;
             }
-
-            AllMemoryBarrierWithGroupSync();
         }
+    }
+}
+
+#pragma kernel Apply
+[numthreads(MAX_THREAD_X, 1, 1)]
+void Apply(uint3 pID : SV_DispatchThreadID) {
+    // Apply viscosity
+    {
+        uint id = pID.x;
+        while (id < gParticlesNumber) {
+            gXVelocity[id] = float3(0, 0, 0);
+            for (int i = 0; i < gNeighborCount[i]; ++i) {
+                int neighbor = gNeighbors[id].nid[i];
+                gXVelocity[id] += 0.01 * Poly6(gPredictionPosition[i] - gPredictionPosition[neighbor], gKernelRange) * (gVelocity[neighbor] - gVelocity[i]);
+            }
+
+            id += MAX_THREAD_X * gBlockSize;
+        }
+
+        AllMemoryBarrierWithGroupSync();
     }
 
     // update position and velocity
     {
         uint id = pID.x;
         while (id < gParticlesNumber) {
-            gVelocity[id] = INV_DELTA_T * (gPredictionPosition[id] - gPosition[id]);
+            gVelocity[id] = INV_DELTA_T * (gPredictionPosition[id] - gPosition[id]) + gXVelocity[id];
             gPosition[id] = gPredictionPosition[id];
-            //TODO:
 
             id += MAX_THREAD_X * gBlockSize;
         }
