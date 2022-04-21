@@ -17,9 +17,6 @@ public class Fluid : MonoBehaviour {
 
     [SerializeField] private Wall[] mWalls;
 
-    [SerializeField] private Vector3 mGridMin;
-    [SerializeField] private Vector3 mGridMax;
-
     [SerializeField] private float mKernelRange;
 
     [SerializeField] private float mDensity;
@@ -32,9 +29,6 @@ public class Fluid : MonoBehaviour {
     private Vector3[] mWallsNormal;
     private Vector3[] mWallsPosition;
 
-    private int[] mNeighbors;
-    private float[] mLambda;
-
     private static readonly int MAX_NEIGHBORS = 50;
 
     private Bounds mBounds;
@@ -45,14 +39,10 @@ public class Fluid : MonoBehaviour {
     private ComputeBuffer mWallsNormalBuffer;
     private ComputeBuffer mWallsPositionBuffer;
     private ComputeBuffer mNeighborsBuffer;
+    private ComputeBuffer mNeighborCountBuffer;
     private ComputeBuffer mLambdaBuffer;
 
-    private int mApplyForceKernel;
-    private int mUpdatePositionAndVelocityKernel;
-    private int mHandleCollisionKernel;
-    private int mGetNeighborsKernel;
-    private int mCalculateLambdaKernel;
-    private int mUpdatePositionKernel;
+    private int mUpdateKernel;
 
     private void InitParticles() {
         int xWidth = Mathf.FloorToInt((mRectMax.x - mRectMin.x) * transform.localScale.x / mRadius / 2);
@@ -63,8 +53,6 @@ public class Fluid : MonoBehaviour {
         mPosition = new Vector3[mParticlesNumber];
         mVelocity = new Vector3[mParticlesNumber];
         mPredictionPosition = new Vector3[mParticlesNumber];
-        mNeighbors = new int[mParticlesNumber * (MAX_NEIGHBORS + 1)];
-        mLambda = new float[mParticlesNumber];
 
         Debug.Log("Particles Number: " + mParticlesNumber);
         mBounds = new Bounds(transform.position, transform.localScale);
@@ -96,19 +84,15 @@ public class Fluid : MonoBehaviour {
     }
 
     void InitComputeShader() {
-        mApplyForceKernel = mSolver.FindKernel("ApplyForce");
-        mUpdatePositionAndVelocityKernel = mSolver.FindKernel("UpdatePositionAndVelocity");
-        mHandleCollisionKernel = mSolver.FindKernel("HandleCollision");
-        mGetNeighborsKernel = mSolver.FindKernel("GetNeighbors");
-        mCalculateLambdaKernel = mSolver.FindKernel("CalculateLambda");
-        mUpdatePositionKernel = mSolver.FindKernel("UpdatePosition");
+        mUpdateKernel = mSolver.FindKernel("Update");
 
         mPositionBuffer = new ComputeBuffer(mParticlesNumber, 12);
         mPredictionPositionBuffer = new ComputeBuffer(mParticlesNumber, 12);
         mVelocityBuffer = new ComputeBuffer(mParticlesNumber, 12);
         mWallsNormalBuffer = new ComputeBuffer(mWalls.Length, 12);
         mWallsPositionBuffer = new ComputeBuffer(mWalls.Length, 12);
-        mNeighborsBuffer = new ComputeBuffer(mParticlesNumber * (MAX_NEIGHBORS + 1), 4);
+        mNeighborsBuffer = new ComputeBuffer(mParticlesNumber, 4 * MAX_NEIGHBORS);
+        mNeighborCountBuffer = new ComputeBuffer(mParticlesNumber, 4);
         mLambdaBuffer = new ComputeBuffer(mParticlesNumber, 4);
 
         mPositionBuffer.SetData(mPosition);
@@ -116,32 +100,15 @@ public class Fluid : MonoBehaviour {
         mVelocityBuffer.SetData(mVelocity);
         mWallsNormalBuffer.SetData(mWallsNormal);
         mWallsPositionBuffer.SetData(mWallsPosition);
-        // mNeighborsBuffer.SetData(mNeighbors);
-        // mLambdaBuffer.SetData(mLambda);
 
-        mSolver.SetBuffer(mApplyForceKernel, "gPosition", mPositionBuffer);
-        mSolver.SetBuffer(mApplyForceKernel, "gPredictionPosition", mPredictionPositionBuffer);
-        mSolver.SetBuffer(mApplyForceKernel, "gVelocity", mVelocityBuffer);
-
-        mSolver.SetBuffer(mUpdatePositionAndVelocityKernel, "gPosition", mPositionBuffer);
-        mSolver.SetBuffer(mUpdatePositionAndVelocityKernel, "gPredictionPosition", mPredictionPositionBuffer);
-        mSolver.SetBuffer(mUpdatePositionAndVelocityKernel, "gVelocity", mVelocityBuffer);
-
-        mSolver.SetBuffer(mHandleCollisionKernel, "gPredictionPosition", mPredictionPositionBuffer);
-        mSolver.SetBuffer(mHandleCollisionKernel, "gVelocity", mVelocityBuffer);
-        mSolver.SetBuffer(mHandleCollisionKernel, "gWallsNormal", mWallsNormalBuffer);
-        mSolver.SetBuffer(mHandleCollisionKernel, "gWallsPosition", mWallsPositionBuffer);
-
-        mSolver.SetBuffer(mGetNeighborsKernel, "gPredictionPosition", mPredictionPositionBuffer);
-        mSolver.SetBuffer(mGetNeighborsKernel, "gNeighbors", mNeighborsBuffer);
-
-        mSolver.SetBuffer(mCalculateLambdaKernel, "gPredictionPosition", mPredictionPositionBuffer);
-        mSolver.SetBuffer(mCalculateLambdaKernel, "gNeighbors", mNeighborsBuffer);
-        mSolver.SetBuffer(mCalculateLambdaKernel, "gLambda", mLambdaBuffer);
-
-        mSolver.SetBuffer(mUpdatePositionKernel, "gPredictionPosition", mPredictionPositionBuffer);
-        mSolver.SetBuffer(mUpdatePositionKernel, "gNeighbors", mNeighborsBuffer);
-        mSolver.SetBuffer(mUpdatePositionKernel, "gLambda", mLambdaBuffer);
+        mSolver.SetBuffer(mUpdateKernel, "gPosition", mPositionBuffer);
+        mSolver.SetBuffer(mUpdateKernel, "gPredictionPosition", mPredictionPositionBuffer);
+        mSolver.SetBuffer(mUpdateKernel, "gVelocity", mVelocityBuffer);
+        mSolver.SetBuffer(mUpdateKernel, "gWallsNormal", mWallsNormalBuffer);
+        mSolver.SetBuffer(mUpdateKernel, "gWallsPosition", mWallsPositionBuffer);
+        mSolver.SetBuffer(mUpdateKernel, "gNeighbors", mNeighborsBuffer);
+        mSolver.SetBuffer(mUpdateKernel, "gNeighborCount", mNeighborCountBuffer);
+        mSolver.SetBuffer(mUpdateKernel, "gLambda", mLambdaBuffer);
     }
 
     private void Awake() {
@@ -156,60 +123,11 @@ public class Fluid : MonoBehaviour {
         mSolver.SetFloat("gRadius", mRadius);
         mSolver.SetFloat("gKernelRange", mKernelRange);
         mSolver.SetFloat("gDensity", mDensity);
+        mSolver.SetInt("gMaxNeighborsCount", MAX_NEIGHBORS);
 
-        // apply force
-        {
-            int blockSize = Mathf.CeilToInt(mParticlesNumber / 1024.0f);
-            mSolver.SetInt("gBlockSize", blockSize);
-            mSolver.Dispatch(mApplyForceKernel, blockSize, 1, 1);
-        }
-
-        // find neighbors
-        {
-            int blockSize = Mathf.CeilToInt(mParticlesNumber / 1024.0f);
-            mSolver.SetInt("gMaxNeighborsCount", MAX_NEIGHBORS + 1);
-            mSolver.SetInt("gBlockSize", blockSize);
-            mSolver.Dispatch(mGetNeighborsKernel, blockSize, 1, 1);
-        }
-
-        for (int i = 0; i < 1; ++i) {
-            // calculate lambda
-            {
-                int blockSize = Mathf.CeilToInt(mParticlesNumber / 1024.0f);
-                mSolver.SetInt("gBlockSize", blockSize);
-                mSolver.Dispatch(mCalculateLambdaKernel, blockSize, 1, 1);
-                // mLambdaBuffer.GetData(mLambda);
-                // foreach (float lmd in mLambda) {
-                //     Debug.Log(lmd);
-                // }
-            }
-
-            // collision detection
-            {
-                int blockSize = Mathf.CeilToInt(mParticlesNumber / 1024.0f);
-                mSolver.SetInt("gBlockSize", blockSize);
-                mSolver.Dispatch(mHandleCollisionKernel, blockSize, 1, 1);
-            }
-
-            // // update position
-            {
-                int blockSize = Mathf.CeilToInt(mParticlesNumber / 1024.0f);
-                mSolver.SetInt("gBlockSize", blockSize);
-                mSolver.Dispatch(mUpdatePositionKernel, blockSize, 1, 1);
-                // mPredictionPositionBuffer.GetData(mPredictionPosition);
-                // foreach (var fuck in mPredictionPosition) {
-                //     Debug.Log(fuck);
-                // }
-            }
-        }
-
-        // TODO: apply viscocity
-        // update position and velocity
-        {
-            int blockSize = Mathf.CeilToInt(mParticlesNumber / 1024.0f);
-            mSolver.SetInt("gBlockSize", blockSize);
-            mSolver.Dispatch(mUpdatePositionAndVelocityKernel, blockSize, 1, 1);
-        }
+        int blockSize = Mathf.CeilToInt(mParticlesNumber / 1024.0f);
+        mSolver.SetInt("gBlockSize", blockSize);
+        mSolver.Dispatch(mUpdateKernel, blockSize, 1, 1);
 
         // render
         mMaterial.SetBuffer("positionBuffer", mPositionBuffer);
