@@ -105,10 +105,6 @@ float Poly6(float3 pDelta, float pRange) {
     return 315.0f / 64 / PI / pow(pRange, 9) * pow(pRange * pRange - r2, 3);
 }
 
-float Poly6Scale(float r2, float pRange) {
-    return 315.0f / (64 * PI * pow(pRange, 9)) * pow((pRange * pRange - r2), 3);
-}
-
 float3 SpikyGradient(float3 pDelta, float pRange) {
     float r = length(pDelta);
     if (pRange < r) {
